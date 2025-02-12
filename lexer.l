@@ -1,156 +1,158 @@
 %{
-#include <iostream>
-#include "tokens.h"      // Contém as definições dos tokens
-
-// Declarar yylval para armazenar valores dos tokens
-YYSTYPE yylval;
+#include <stdio.h>
+#include <stdlib.h>
+#include "parser.tab.h"      // Contém as definições dos tokens
 %}
 
+%option yylineno
 %option noyywrap
 
 %%
 
 "var"                   { 
-    std::cout << "Token: VAR" << std::endl; 
+    printf("Token: VAR\n"); 
     return VAR; 
 }
 "inteiro"               { 
-    std::cout << "Token: TIPO_INTEIRO" << std::endl; 
+    printf("Token: TIPO_INTEIRO\n"); 
     return TIPO_INTEIRO; 
 }
 "texto"                 { 
-    std::cout << "Token: TIPO_TEXTO" << std::endl; 
+    printf("Token: TIPO_TEXTO\n"); 
     return TIPO_TEXTO; 
 }
 "booleano"              {
-    std::cout << "Token: TIPO_BOOLEANO" << std::endl; 
+    printf("Token: TIPO_BOOLEANO\n"); 
     return TIPO_BOOLEANO; 
 }
 "config"                { 
-    std::cout << "Token: CONFIG" << std::endl; 
+    printf("Token: CONFIG\n"); 
     return CONFIG; 
 }
 "fim"                   { 
-    std::cout << "Token: FIM" << std::endl; 
+    printf("Token: FIM\n"); 
     return FIM; 
 }
 "repita"                {
-    std::cout << "Token: REPITA" << std::endl;
+    printf("Token: REPITA\n");
     return REPITA;
 }
 "configurar"            { 
-    std::cout << "Token: CONFIGURAR" << std::endl; 
+    printf("Token: CONFIGURAR\n"); 
     return CONFIGURAR; 
 }
 "como"                  { 
-    std::cout << "Token: COMO" << std::endl; 
+    printf("Token: COMO\n"); 
     return COMO; 
 }
 "saida"                 { 
-    std::cout << "Token: DIRECAO" << std::endl; 
+    printf("Token: DIRECAO\n"); 
     return DIRECAO; 
 }
 "configurarPWM"         { 
-    std::cout << "Token: CONFIGURAR_PWM" << std::endl; 
+    printf("Token: CONFIGURAR_PWM\n"); 
     return CONFIGURAR_PWM; 
 }
 "ajustarPWM"            { 
-    std::cout << "Token: AJUSTAR_PWM" << std::endl; 
+    printf("Token: AJUSTAR_PWM\n"); 
     return AJUSTAR_PWM; 
 }
 "conectarWifi"          { 
-    std::cout << "Token: CONECTAR_WIFI" << std::endl; 
+    printf("Token: CONECTAR_WIFI\n"); 
     return CONECTAR_WIFI; 
 }
 "enviarHTTP"            { 
-    std::cout << "Token: ENVIAR_HTTP" << std::endl; 
+    printf("Token: ENVIAR_HTTP\n"); 
     return ENVIAR_HTTP; 
 }
 "escreverSerial"        { 
-    std::cout << "Token: ESCREVER_SERIAL" << std::endl; 
+    printf("Token: ESCREVER_SERIAL\n"); 
     return ESCREVER_SERIAL; 
 }
 "lerSerial"             { 
-    std::cout << "Token: LER_SERIAL" << std::endl; 
+    printf("Token: LER_SERIAL\n"); 
     return LER_SERIAL; 
 }
 "se"                    { 
-    std::cout << "Token: SE" << std::endl; 
+    printf("Token: SE\n"); 
     return SE; 
 }
 "entao"                 { 
-    std::cout << "Token: ENTAO" << std::endl; 
+    printf("Token: ENTAO\n"); 
     return ENTAO; 
 }
 "senão"                 { 
-    std::cout << "Token: SENAO" << std::endl; 
+    printf("Token: SENAO\n"); 
     return SENAO; 
 }
 "enquanto"              { 
-    std::cout << "Token: ENQUANTO" << std::endl; 
+    printf("Token: ENQUANTO\n"); 
     return ENQUANTO; 
 }
 "esperar"               { 
-    std::cout << "Token: ESPERAR" << std::endl; 
+    printf("Token: ESPERAR\n"); 
     return ESPERAR; 
 }
 "ligar"                 { 
-    std::cout << "Token: LIGAR" << std::endl; 
+    yylval.intval = 1; 
+    printf("Token: LIGAR\n"); 
     return LIGAR; 
 }
 "desligar"              { 
-    std::cout << "Token: DESLIGAR" << std::endl; 
+    yylval.intval = 0; 
+    printf("Token: DESLIGAR\n"); 
     return DESLIGAR; 
 }
-"com"                 { std::cout << "Token: COM" << std::endl; return COM; }
-"frequencia"          { std::cout << "Token: FREQUENCIA" << std::endl; return FREQUENCIA; }
-"resolucao"           { std::cout << "Token: RESOLUCAO" << std::endl; return RESOLUCAO; }
-"valor"               { std::cout << "Token: VALOR" << std::endl; return VALOR; }
+"com"                 { printf("Token: COM\n"); return COM; }
+"frequencia"          { printf("Token: FREQUENCIA\n"); return FREQUENCIA; }
+"resolucao"           { printf("Token: RESOLUCAO\n"); return RESOLUCAO; }
+"valor"               { printf("Token: VALOR\n"); return VALOR; }
 
-"=="   { std::cout << "Token: IGUAL_IGUAL" << std::endl; return IGUAL_IGUAL; }
-"!="   { std::cout << "Token: DIFERENTE" << std::endl; return DIFERENTE; }
-"<="   { std::cout << "Token: MENOR_IGUAL" << std::endl; return MENOR_IGUAL; }
-">="   { std::cout << "Token: MAIOR_IGUAL" << std::endl; return MAIOR_IGUAL; }
+"=="   { printf("Token: IGUAL_IGUAL\n"); return IGUAL_IGUAL; }
+"!="   { printf("Token: DIFERENTE\n"); return DIFERENTE; }
+"<="   { printf("Token: MENOR_IGUAL\n"); return MENOR_IGUAL; }
+">="   { printf("Token: MAIOR_IGUAL\n"); return MAIOR_IGUAL; }
 "="                     { 
-    std::cout << "Token: IGUAL" << std::endl; 
+    printf("Token: IGUAL\n"); 
     return IGUAL; 
 }
 ":"                     { 
-    std::cout << "Token: DOIS_PONTOS" << std::endl; 
+    printf("Token: DOIS_PONTOS\n"); 
     return DOIS_PONTOS; 
 }
 ";"                     { 
-    std::cout << "Token: PONTO_VIRGULA" << std::endl; 
+    printf("Token: PONTO_VIRGULA\n"); 
     return PONTO_VIRGULA; 
 }
 
-"\+"                 { std::cout << "Token: MAIS" << std::endl; return MAIS; }
-"-"                   { std::cout << "Token: MENOS" << std::endl; return MENOS; }
-"\*"                 { std::cout << "Token: VEZES" << std::endl; return VEZES; }
-"/"                   { std::cout << "Token: DIV" << std::endl; return DIV; }
+"\+"                 { printf("Token: MAIS\n"); return MAIS; }
+"-"                   { printf("Token: MENOS\n"); return MENOS; }
+"\*"                 { printf("Token: VEZES\n"); return VEZES; }
+"/"                   { printf("Token: DIV\n"); return DIV; }
 
-">"                   { std::cout << "Token: MAIOR" << std::endl; return MAIOR; }
-"<"                   { std::cout << "Token: MENOR" << std::endl; return MENOR; }
+">"                   { printf("Token: MAIOR\n"); return MAIOR; }
+"<"                   { printf("Token: MENOR\n"); return MENOR; }
 
 "\("                 { return '('; }
 "\)"                 { return ')'; }
-","                   { std::cout << "Token: VIRGULA" << std::endl; return VIRGULA; }
-
- 
+","                   { printf("Token: VIRGULA\n"); return VIRGULA; }
 
 [0-9]+                  { 
-    yylval.valor_inteiro = atoi(yytext);  // Converte o texto para inteiro
-    std::cout << "Token: NUMERO, Valor: " << yylval.valor_inteiro << std::endl;
+    yylval.intval = atoi(yytext);  // Converte o texto para inteiro
+    printf("Token: NUMERO, Valor: %d\n", yylval.intval);
     return NUMERO; 
 }
 
 \"[^\"]*\"              { 
-    std::cout << "Token: STRING_LIT, Valor: " << yytext << std::endl; 
+    yylval.str = strdup(yytext + 1);  // Remove aspas iniciais
+    yylval.str[strlen(yylval.str) - 1] = '\0';  // Remove aspas finais
+    printf("Token: STRING_LIT, Valor: %s\n", yytext); 
     return STRING_LIT; 
 }
 
 [a-zA-Z_][a-zA-Z0-9_]*  { 
-    std::cout << "Token: IDENTIFICADOR, Valor: " << yytext << std::endl; 
+    yylval.str = strdup(yytext);
+    printf("Token: IDENTIFICADOR, Valor: %s\n", yytext); 
     return IDENTIFICADOR; 
 }
 
@@ -161,24 +163,9 @@ YYSTYPE yylval;
 \n                      { return NOVA_LINHA; }
 
 .                       { 
-     std::cerr << "Erro: caractere inválido " << yytext << std::endl;
+     fprintf(stderr, "Erro: caractere inválido %s\n", yytext);
     return ERRO; 
 }
 
 %%
 
-int yywrap() {
-    return 1; // Indica que não há mais entradas para processar
-}
-
-int main() {
-    yyFlexLexer lexer;  // Cria uma instância do analisador léxico
-    int token;
-    
-    // Enquanto houver tokens para processar
-    while ((token = lexer.yylex()) != 0) {
-        // O token já foi impresso pelas regras no Flex
-    }
-    
-    return 0;
-}
