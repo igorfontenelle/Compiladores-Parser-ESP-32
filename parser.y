@@ -51,14 +51,16 @@ int valid_string(const char* str);
 %nonassoc IGUAL_IGUAL DIFERENTE MENOR MAIOR MENOR_IGUAL MAIOR_IGUAL
 
 /* Declaração do tipo de retorno das expressões */
-%type <intval> expression
+%type <str> expression
+%type <intval> expression_num
+%type <str> expression_str
 
 %%
 
 /* Regra inicial do programa */
 program:
-      declaration_list configBlock repitaBlock
-      { printf("Programa validado corretamente.\n"); }
+    declaration_list configBlock repitaBlock '\n' { printf("Programa validado corretamente.\n"); }
+    | program '\n'
     ;
 
 /* Lista de declarações de variáveis */
@@ -111,7 +113,7 @@ statement:
 /* Atribuição de valor a uma variável */
 assignment_statement:
       IDENTIFICADOR IGUAL expression PONTO_VIRGULA 
-      { printf("Atribuindo: %s = %d\n", $1, $3); }
+      { printf("Atribuindo: %s = %s\n", $1, $3); }
     ;
 
 /* Comandos disponíveis na linguagem */
@@ -128,7 +130,7 @@ command_statement:
 
 /* Configuracao de pino (ex.: configurar ledPin como saida;) */
 config_command:
-      CONFIGURAR IDENTIFICADOR COM DIRECAO PONTO_VIRGULA 
+      CONFIGURAR IDENTIFICADOR COMO DIRECAO PONTO_VIRGULA 
       { printf("Configurando pino: %s como saida.\n", $2); }
     ;
 
@@ -141,7 +143,7 @@ pwm_config_command:
 /* Ajuste de PWM (ex.: ajustarPWM ledPin com valor brilho;) */
 pwm_adjust_command:
       AJUSTAR_PWM IDENTIFICADOR COM VALOR expression PONTO_VIRGULA 
-      { printf("Ajustando PWM no pino: %s com valor: %d\n", $2, $5); }
+      { printf("Ajustando PWM no pino: %s com valor: %s\n", $2, $5); }
     ;
 
 /* Conexao Wi-Fi (ex.: conectarWifi ssid senha;) */
@@ -153,7 +155,7 @@ wifi_connect_command:
 /* Comando de delay (ex.: esperar 1000;) */
 wait_command:
       ESPERAR expression PONTO_VIRGULA 
-      { printf("Esperando: %d ms\n", $2); }
+      { printf("Esperando: %s ms\n", $2); }
     ;
 
 /* Comando digital (ex.: ligar ou desligar um pino) */
@@ -187,7 +189,7 @@ control_structure:
 /* Estrutura condicional (if) */
 if_statement:
       SE expression ENTAO statement_list opt_else FIM 
-      { printf("Condicional SE executada com condicao: %d\n", $2); }
+      { printf("Condicional SE executada com condicao: %s\n", $2); }
     ;
 
 /* Opcional: parte SENAO do if */
@@ -200,37 +202,42 @@ opt_else:
 /* Estrutura de repeticao (while) */
 while_statement:
       ENQUANTO expression statement_list FIM 
-      { printf("Estrutura ENQUANTO executada com condicao: %d\n", $2); }
+      { printf("Estrutura ENQUANTO executada com condicao: %s\n", $2); }
     ;
 
 /* Definicao de expressoes aritmeticas e relacionais */
 expression:
-      expression MAIS expression
+      expression_num { asprintf(&$$, "%d", $1); }
+    | expression_str { $$ = strdup($1); }
+    ;
+
+expression_num:
+      NUMERO { $$ = $1; }
+    | expression_num MAIS expression_num
           { $$ = $1 + $3; }
-    | expression MENOS expression
+    | expression_num MENOS expression_num
           { $$ = $1 - $3; }
-    | expression VEZES expression
+    | expression_num VEZES expression_num
           { $$ = $1 * $3; }
-    | expression DIV expression
+    | expression_num DIV expression_num
           { $$ = $1 / $3; }
-    | expression IGUAL_IGUAL expression
-          { $$ = ($1 == $3); }
-    | expression DIFERENTE expression
-          { $$ = ($1 != $3); }
-    | expression MENOR expression
-          { $$ = ($1 < $3); }
-    | expression MAIOR expression
-          { $$ = ($1 > $3); }
-    | expression MENOR_IGUAL expression
-          { $$ = ($1 <= $3); }
-    | expression MAIOR_IGUAL expression
-          { $$ = ($1 >= $3); }
-    | '(' expression ')'
-          { $$ = $2; }
-    | NUMERO
-          { $$ = $1; }
-    | IDENTIFICADOR
-          { $$ = 0; }         /* Em um analisador completo, deve-se buscar o valor da variável */
+    | expression_num MENOR expression_num
+          { $$ = $1 < $3; }
+    | expression_num MAIOR expression_num
+          { $$ = $1 > $3; }
+    | expression_num MENOR_IGUAL expression_num
+          { $$ = $1 <= $3; }
+    | expression_num MAIOR_IGUAL expression_num
+          { $$ = $1 >= $3; }
+    | '(' expression_num ')' { $$ = $2; }
+    ;
+
+expression_str:
+      STRING_LIT { $$ = strdup($1); }
+    | expression_str IGUAL_IGUAL expression_str
+          { asprintf(&$$, "%d", strcmp($1, $3) == 0); }
+    | expression_str DIFERENTE expression_str
+          { asprintf(&$$, "%d", strcmp($1, $3) != 0); }
     ;
 
 %%
