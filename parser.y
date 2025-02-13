@@ -52,8 +52,6 @@ int valid_string(const char* str);
 
 /* Declaração do tipo de retorno das expressões */
 %type <str> expression
-%type <intval> expression_num
-%type <str> expression_str
 
 %%
 
@@ -205,40 +203,126 @@ while_statement:
       { printf("Estrutura ENQUANTO executada com condicao: %s\n", $2); }
     ;
 
-/* Definicao de expressoes aritmeticas e relacionais */
+/* Nova definição de expressão unificada */
 expression:
-      expression_num { asprintf(&$$, "%d", $1); }
-    | expression_str { $$ = strdup($1); }
-    ;
+    /* 1) Valor inteiro literal -> converte para string */
+      NUMERO 
+        {
+          char buffer[32];
+          sprintf(buffer, "%d", $1);  /* $1 é <intval> */
+          $$ = strdup(buffer);        /* $$ é <str> */
+        }
 
-expression_num:
-      NUMERO { $$ = $1; }
-    | expression_num MAIS expression_num
-          { $$ = $1 + $3; }
-    | expression_num MENOS expression_num
-          { $$ = $1 - $3; }
-    | expression_num VEZES expression_num
-          { $$ = $1 * $3; }
-    | expression_num DIV expression_num
-          { $$ = $1 / $3; }
-    | expression_num MENOR expression_num
-          { $$ = $1 < $3; }
-    | expression_num MAIOR expression_num
-          { $$ = $1 > $3; }
-    | expression_num MENOR_IGUAL expression_num
-          { $$ = $1 <= $3; }
-    | expression_num MAIOR_IGUAL expression_num
-          { $$ = $1 >= $3; }
-    | '(' expression_num ')' { $$ = $2; }
-    ;
+    /* 2) Identificador -> já é <str> */
+    | IDENTIFICADOR
+        {
+          $$ = strdup($1); /* copia a string */
+        }
 
-expression_str:
-      STRING_LIT { $$ = strdup($1); }
-    | expression_str IGUAL_IGUAL expression_str
-          { asprintf(&$$, "%d", strcmp($1, $3) == 0); }
-    | expression_str DIFERENTE expression_str
-          { asprintf(&$$, "%d", strcmp($1, $3) != 0); }
-    ;
+    /* 3) String literal -> já é <str> */
+    | STRING_LIT
+        {
+          $$ = strdup($1);
+        }
+
+    /* 4) Operação soma (sintaxe expression + expression) */
+    | expression MAIS expression
+        {
+          /* Concatena as duas subexpressões numa só string 
+             Exemplo: "(E1+E2)" */
+          int len = strlen($1) + strlen($3) + 5;
+          char* buf = (char*) malloc(len);
+          sprintf(buf, "(%s+%s)", $1, $3);
+          $$ = buf;
+        }
+
+    /* 5) Operação subtração */
+    | expression MENOS expression
+        {
+          int len = strlen($1) + strlen($3) + 5;
+          char* buf = (char*) malloc(len);
+          sprintf(buf, "(%s-%s)", $1, $3);
+          $$ = buf;
+        }
+
+    /* 6) Multiplicação */
+    | expression VEZES expression
+        {
+          int len = strlen($1) + strlen($3) + 5;
+          char* buf = (char*) malloc(len);
+          sprintf(buf, "(%s*%s)", $1, $3);
+          $$ = buf;
+        }
+
+    /* 7) Divisão */
+    | expression DIV expression
+        {
+          int len = strlen($1) + strlen($3) + 5;
+          char* buf = (char*) malloc(len);
+          sprintf(buf, "(%s/%s)", $1, $3);
+          $$ = buf;
+        }
+
+    /* 8) Parênteses */
+    | '(' expression ')'
+        {
+          int len = strlen($2) + 3;
+          char* buf = (char*) malloc(len);
+          sprintf(buf, "(%s)", $2);
+          $$ = buf;
+        }
+
+    /* Opcional: comparações (<, >, == etc.) se quiser agrupar tudo */
+    /* 9) expression < expression */
+    | expression MENOR expression
+        {
+          /* Aqui você poderia também gerar string "E1<E2" */
+          int len = strlen($1) + strlen($3) + 4;
+          char* buf = (char*) malloc(len);
+          sprintf(buf, "(%s<%s)", $1, $3);
+          $$ = buf;
+        }
+
+    | expression MAIOR expression
+        {
+          /* Aqui você poderia também gerar string "E1<E2" */
+          int len = strlen($1) + strlen($3) + 4;
+          char* buf = (char*) malloc(len);
+          sprintf(buf, "(%s>%s)", $1, $3);
+          $$ = buf;
+        }
+    | expression MENOR_IGUAL expression
+        {
+          /* Aqui você poderia também gerar string "E1<E2" */
+          int len = strlen($1) + strlen($3) + 4;
+          char* buf = (char*) malloc(len);
+          sprintf(buf, "(%s<=%s)", $1, $3);
+          $$ = buf;
+        }
+      | expression MAIOR_IGUAL expression
+        {
+          /* Aqui você poderia também gerar string "E1<E2" */
+          int len = strlen($1) + strlen($3) + 4;
+          char* buf = (char*) malloc(len);
+          sprintf(buf, "(%s>=%s)", $1, $3);
+          $$ = buf;
+        }
+        | expression IGUAL_IGUAL expression
+        {
+          /* Aqui você poderia também gerar string "E1<E2" */
+          int len = strlen($1) + strlen($3) + 4;
+          char* buf = (char*) malloc(len);
+          sprintf(buf, "(%s==%s)", $1, $3);
+          $$ = buf;
+        }
+        | expression DIFERENTE expression
+        {
+          /* Aqui você poderia também gerar string "E1<E2" */
+          int len = strlen($1) + strlen($3) + 4;
+          char* buf = (char*) malloc(len);
+          sprintf(buf, "(%s!=%s)", $1, $3);
+          $$ = buf;
+        }
 
 %%
 
