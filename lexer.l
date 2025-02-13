@@ -18,7 +18,8 @@
 "repita"                { printf("Token: REPITA\n"); return REPITA; }
 "configurar"            { printf("Token: CONFIGURAR\n"); return CONFIGURAR; }
 "como"                  { printf("Token: COMO\n"); return COMO; }
-"saida"                 { printf("Token: DIRECAO\n"); return DIRECAO; }
+"saida"                 { yylval.str = strdup("saida");  return DIRECAO; }
+"entrada"               { yylval.str = strdup("entrada");  return DIRECAO; }
 "configurarPWM"         { printf("Token: CONFIGURAR_PWM\n"); return CONFIGURAR_PWM; }
 "ajustarPWM"            { printf("Token: AJUSTAR_PWM\n"); return AJUSTAR_PWM; }
 "conectarWifi"          { printf("Token: CONECTAR_WIFI\n"); return CONECTAR_WIFI; }

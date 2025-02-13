@@ -1,9 +1,30 @@
+%code requires {
+  #include <string>
+  #include <vector>
+  #include "ast.h"   // Pois VarType está definido em "ast.h"
+}
+
 %{
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <iostream>
+  #include "ast.h"   // Para ASTProgram e etc. no corpo do parser
+  #include <stdio.h>
+  #include <stdlib.h>
+  #include <string.h>
+  #include <iostream>
+
+
+// Para simplificar o uso de std::vector e std::string no %union
 using std::cout;
+using std::vector;
+using std::string;
+
+//Objeto global
+ASTProgram astProgram;
+
+/* 
+ * Variável global para sabermos em qual bloco estamos
+ * 0 = nenhum, 1 = config, 2 = repita
+ */
+static int currentBlock = 0;
 
 // Declaração da função do analisador léxico
 int yylex(void);
@@ -14,22 +35,31 @@ void yyerror(const char *s);
 int valid_string(const char* str);
 %}
 
-/* União para os valores dos tokens */
+/* ------------------------------------------------------------------
+   União para os valores dos tokens e não-terminais
+   ------------------------------------------------------------------ */
 %union {
-    int intval;
-    char* str;
+    int intval;                /* Para tokens NUMERO, LIGAR, DESLIGAR etc. */
+    char* str;                 /* Para tokens IDENTIFICADOR, STRING_LIT etc. */
+    VarType varType;           /* Para armazenar o tipo de variável (VAR_INTEIRO, etc.) */
+    std::vector<std::string>* strList; /* Para listas de identificadores */
 }
 
+/* ------------------------------------------------------------------
+   Declaração dos tokens
+   ------------------------------------------------------------------ */
 %token <str> IDENTIFICADOR STRING_LIT
 %token <intval> NUMERO
 %token <intval> LIGAR DESLIGAR
+%token <str> DIRECAO
 
 /* Declaração dos tokens – devem corresponder aos definidos no Flex e no cabeçalho tokens.h */
-%token VAR TIPO_INTEIRO TIPO_TEXTO TIPO_BOOLEANO CONFIG FIM REPITA
-%token CONFIGURAR COMO DIRECAO CONFIGURAR_PWM AJUSTAR_PWM
+%token VAR TIPO_INTEIRO TIPO_TEXTO TIPO_BOOLEANO
+%token CONFIG FIM REPITA
+%token CONFIGURAR COMO CONFIGURAR_PWM AJUSTAR_PWM
 %token CONECTAR_WIFI ENVIAR_HTTP ESCREVER_SERIAL LER_SERIAL
 %token SE ENTAO SENAO ENQUANTO ESPERAR
-%token IGUAL           /* operador de atribuição "=" */
+%token IGUAL  /* "=" atribuição */
 %token DOIS_PONTOS PONTO_VIRGULA
 %token NOVA_LINHA ERRO
 
@@ -45,12 +75,18 @@ int valid_string(const char* str);
 %token MENOR_IGUAL      /* "<=" */
 %token MAIOR_IGUAL      /* ">=" */
 
-/* Definição de precedências e associatividade */
+/* ------------------------------------------------------------------
+   Definições de precedência 
+   ------------------------------------------------------------------ */
 %left MAIS MENOS
 %left VEZES DIV
 %nonassoc IGUAL_IGUAL DIFERENTE MENOR MAIOR MENOR_IGUAL MAIOR_IGUAL
 
-/* Declaração do tipo de retorno das expressões */
+/* ------------------------------------------------------------------
+   Definições de tipo de cada não-terminal
+   ------------------------------------------------------------------ */
+%type <varType> type
+%type <strList> identifier_list
 %type <str> expression
 
 %%
@@ -69,31 +105,75 @@ declaration_list:
 
 declaration:
       VAR type DOIS_PONTOS identifier_list PONTO_VIRGULA 
-      { printf("Declaracao de variaveis realizada.\n"); }
+      { 
+        // $2 é <varType>, $4 é <strList>
+        // Inserir as variáveis em astProgram.declarations
+        for (auto &nome : *($4)) {
+            VarDecl decl;
+            decl.name = nome;       // ex.: "ledPin"
+            decl.type = $2;        // ex.: VAR_INTEIRO
+            // isPin, isPWM, etc. começam em false (construtor default)
+            astProgram.declarations.push_back(decl);
+        }
+        printf("Declaracao de variaveis realizada.\n"); 
+        // Liberar a memória da lista
+        delete $4;
+        
+      }
     ;
 
 /* Tipos suportados */
 type:
       TIPO_INTEIRO { printf("Tipo: inteiro\n"); }
     | TIPO_TEXTO   { printf("Tipo: texto\n"); }
+    | TIPO_BOOLEANO { $$ = VAR_BOOLEANO; }
     ;
 
-/* Cada identificador é impresso ao ser declarado */
+/* Lista de identificadores: "ledPin, brilho" */
 identifier_list:
-      IDENTIFICADOR { printf("Declarando variavel: %s\n", $1); }
-    | identifier_list VIRGULA IDENTIFICADOR { printf("Declarando variavel: %s\n", $3); }
+      IDENTIFICADOR 
+      { 
+        // Cria uma lista e insere $1
+        auto v = new vector<string>();
+        v->push_back($1);
+        $$ = v;
+        printf("Declarando variavel: %s\n", $1); 
+        free($1); // liberamos a string alocada pelo lexer
+      }
+    | identifier_list VIRGULA IDENTIFICADOR 
+    { 
+      // anexa $3 na lista existente $1
+      $1->push_back($3);
+      $$ = $1;
+      printf("Declarando variavel: %s\n", $3); 
+      free($3);
+    }
     ;
 
-/* Bloco de configuração: executado uma única vez */
+/* Bloco de configuração (executado uma única vez) */
 configBlock:
-      CONFIG statement_list FIM
-      { printf("Bloco de configuracao executado.\n"); }
+      CONFIG
+        {
+          currentBlock = 1; // Indica que estamos em "config"
+        }
+      statement_list FIM
+        {
+          currentBlock = 0; // encerramos config
+          printf("Bloco de configuracao executado.\n");
+        }
     ;
 
-/* Bloco principal (loop): executado continuamente */
+/* Bloco principal (loop contínuo) */
 repitaBlock:
-      REPITA statement_list FIM
-      { printf("Loop principal (repita) executado.\n"); }
+      REPITA
+        {
+          currentBlock = 2; // Indica que estamos em "repita"
+        }
+      statement_list FIM
+        {
+          currentBlock = 0; // encerra "repita"
+          // printf("Loop principal (repita) executado.\n");
+        }
     ;
 
 /* Lista de comandos */
@@ -110,8 +190,23 @@ statement:
 
 /* Atribuição de valor a uma variável */
 assignment_statement:
-      IDENTIFICADOR IGUAL expression PONTO_VIRGULA 
-      { printf("Atribuindo: %s = %s\n", $1, $3); }
+      IDENTIFICADOR IGUAL expression PONTO_VIRGULA
+      {
+        Command cmd;
+        cmd.cmdType = CMD_ASSIGN;
+        cmd.varName = $1;  // ex.: "ledPin"
+        cmd.expr = $3;     // ex.: "2", "brilho", etc.
+
+        // Adiciona no bloco atual (config ou repita)
+        if (currentBlock == 1) {
+            astProgram.configCommands.push_back(cmd);
+        } else if (currentBlock == 2) {
+            astProgram.repitaCommands.push_back(cmd);
+        }
+        printf("Atribuindo: %s = %s\n", $1, $3);
+        free($1);
+        free($3);
+      }
     ;
 
 /* Comandos disponíveis na linguagem */
@@ -128,54 +223,182 @@ command_statement:
 
 /* Configuracao de pino (ex.: configurar ledPin como saida;) */
 config_command:
-      CONFIGURAR IDENTIFICADOR COMO DIRECAO PONTO_VIRGULA 
-      { printf("Configurando pino: %s como saida.\n", $2); }
+      CONFIGURAR IDENTIFICADOR COMO DIRECAO PONTO_VIRGULA
+      {
+        Command cmd;
+        cmd.cmdType = CMD_CONFIG_PIN;
+        cmd.pin = $2;        // "ledPin"
+        cmd.pinMode = $4;    // "saida", "entrada", etc.
+
+        if (currentBlock == 1) {
+            astProgram.configCommands.push_back(cmd);
+        } else if (currentBlock == 2) {
+            astProgram.repitaCommands.push_back(cmd);
+        }
+        printf("Configurando pino: %s como saida.\n", $2);
+        free($2);
+        free($4);
+      }
     ;
 
 /* Configuracao de PWM (ex.: configurarPWM ledPin com frequencia 5000 resolucao 8;) */
 pwm_config_command:
-      CONFIGURAR_PWM IDENTIFICADOR COM FREQUENCIA NUMERO RESOLUCAO NUMERO PONTO_VIRGULA 
-      { printf("Configurando PWM no pino: %s com frequencia: %d e resolucao: %d\n", $2, $5, $7); }
+      CONFIGURAR_PWM IDENTIFICADOR COM FREQUENCIA NUMERO RESOLUCAO NUMERO PONTO_VIRGULA
+      {
+        Command cmd;
+        cmd.cmdType = CMD_CONFIG_PWM;
+        cmd.pin = $2;    // ex.: "ledPin"
+        cmd.freq = $5;   // ex.: 5000
+        cmd.resol = $7;  // ex.: 8
+
+        if (currentBlock == 1) {
+            astProgram.configCommands.push_back(cmd);
+        } else if (currentBlock == 2) {
+            astProgram.repitaCommands.push_back(cmd);
+        }
+        printf("Configurando PWM no pino: %s com frequencia: %d e resolucao: %d\n", $2, $5, $7);
+        free($2);
+      }
     ;
 
 /* Ajuste de PWM (ex.: ajustarPWM ledPin com valor brilho;) */
 pwm_adjust_command:
-      AJUSTAR_PWM IDENTIFICADOR COM VALOR expression PONTO_VIRGULA 
-      { printf("Ajustando PWM no pino: %s com valor: %s\n", $2, $5); }
+      AJUSTAR_PWM IDENTIFICADOR COM VALOR expression PONTO_VIRGULA
+      {
+        Command cmd;
+        cmd.cmdType = CMD_PWM_ADJUST;
+        cmd.pin = $2;         // "ledPin"
+        cmd.valueExpr = $5;   // "brilho", "128", etc.
+
+        if (currentBlock == 1) {
+            astProgram.configCommands.push_back(cmd);
+        } else if (currentBlock == 2) {
+            astProgram.repitaCommands.push_back(cmd);
+        }
+        printf("Ajustando PWM no pino: %s com valor: %s\n", $2, $5);
+        free($2);
+        free($5);
+      }
     ;
 
 /* Conexao Wi-Fi (ex.: conectarWifi ssid senha;) */
 wifi_connect_command:
-      CONECTAR_WIFI IDENTIFICADOR IDENTIFICADOR PONTO_VIRGULA 
-      { printf("Conectando WiFi: SSID = %s, SENHA = %s\n", $2, $3); }
+      CONECTAR_WIFI IDENTIFICADOR IDENTIFICADOR PONTO_VIRGULA
+      {
+        Command cmd;
+        cmd.cmdType = CMD_WIFI_CONNECT;
+        cmd.ssid = $2;
+        cmd.password = $3;
+
+        if (currentBlock == 1) {
+            astProgram.configCommands.push_back(cmd);
+        } else if (currentBlock == 2) {
+            astProgram.repitaCommands.push_back(cmd);
+        }
+        printf("Conectando WiFi: SSID = %s, SENHA = %s\n", $2, $3);
+        free($2);
+        free($3);
+      }
     ;
 
 /* Comando de delay (ex.: esperar 1000;) */
 wait_command:
-      ESPERAR expression PONTO_VIRGULA 
-      { printf("Esperando: %s ms\n", $2); }
+      ESPERAR expression PONTO_VIRGULA
+      {
+        Command cmd;
+        cmd.cmdType = CMD_WAIT;
+        cmd.waitTime = $2; // ex. "1000"
+
+        if (currentBlock == 1) {
+            astProgram.configCommands.push_back(cmd);
+        } else if (currentBlock == 2) {
+            astProgram.repitaCommands.push_back(cmd);
+        }
+        printf("Esperando: %s ms\n", $2);
+        free($2);
+      }
     ;
 
 /* Comando digital (ex.: ligar ou desligar um pino) */
 digital_command:
-      LIGAR IDENTIFICADOR PONTO_VIRGULA 
-      { printf("Comando digital: LIGAR %s\n", $2); }
-    | DESLIGAR IDENTIFICADOR PONTO_VIRGULA 
-      { printf("Comando digital: DESLIGAR %s\n", $2); }
+      LIGAR IDENTIFICADOR PONTO_VIRGULA
+      {
+        Command cmd;
+        cmd.cmdType = CMD_LIGAR;
+        cmd.digitalPin = $2;
+
+        if (currentBlock == 1) {
+            astProgram.configCommands.push_back(cmd);
+        } else if (currentBlock == 2) {
+            astProgram.repitaCommands.push_back(cmd);
+        }
+        printf("Comando digital: LIGAR %s\n", $2);
+        free($2);
+      }
+    | DESLIGAR IDENTIFICADOR PONTO_VIRGULA
+      {
+        Command cmd;
+        cmd.cmdType = CMD_DESLIGAR;
+        cmd.digitalPin = $2;
+
+        if (currentBlock == 1) {
+            astProgram.configCommands.push_back(cmd);
+        } else if (currentBlock == 2) {
+            astProgram.repitaCommands.push_back(cmd);
+        }
+        printf("Comando digital: DESLIGAR %s\n", $2);
+        free($2);
+      }
     ;
 
 /* Envio de dados via HTTP (ex.: enviarHTTP "http://example.com" "dados=123";) */
 http_command:
-      ENVIAR_HTTP STRING_LIT STRING_LIT PONTO_VIRGULA 
-      { printf("Enviando HTTP: URL = %s, DADOS = %s\n", $2, $3); }
+      ENVIAR_HTTP STRING_LIT STRING_LIT PONTO_VIRGULA
+      {
+        Command cmd;
+        cmd.cmdType = CMD_ENVIAR_HTTP;
+        cmd.httpUrl = $2;   // ex.: "http://example.com"
+        cmd.httpData = $3;  // ex.: "dados=123"
+
+        if (currentBlock == 1) {
+            astProgram.configCommands.push_back(cmd);
+        } else if (currentBlock == 2) {
+            astProgram.repitaCommands.push_back(cmd);
+        }
+        printf("Enviando HTTP: URL = %s, DADOS = %s\n", $2, $3);
+        free($2);
+        free($3);
+      }
     ;
 
 /* Comunicacao serial (ex.: escreverSerial "Mensagem"; ou lerSerial;) */
 serial_command:
-      ESCREVER_SERIAL STRING_LIT PONTO_VIRGULA 
-      { printf("Escrevendo na Serial: %s\n", $2); }
-    | LER_SERIAL PONTO_VIRGULA 
-      { printf("Lendo da Serial\n"); }
+      ESCREVER_SERIAL STRING_LIT PONTO_VIRGULA
+      {
+        Command cmd;
+        cmd.cmdType = CMD_ESCREVER_SERIAL;
+        cmd.serialMsg = $2;  // ex.: "Mensagem"
+
+        if (currentBlock == 1) {
+            astProgram.configCommands.push_back(cmd);
+        } else if (currentBlock == 2) {
+            astProgram.repitaCommands.push_back(cmd);
+        }
+        printf("Escrevendo na Serial: %s\n", $2);
+        free($2);
+      }
+    | LER_SERIAL PONTO_VIRGULA
+      {
+        Command cmd;
+        cmd.cmdType = CMD_LER_SERIAL;
+
+        if (currentBlock == 1) {
+            astProgram.configCommands.push_back(cmd);
+        } else if (currentBlock == 2) {
+            astProgram.repitaCommands.push_back(cmd);
+        }
+        printf("Lendo da Serial\n");
+      }
     ;
 
 /* Estruturas de controle */
@@ -185,144 +408,165 @@ control_structure:
     ;
 
 /* Estrutura condicional (if) */
+/* if_statement: se expr entao statement_list [senao statement_list] fim */
 if_statement:
-      SE expression ENTAO statement_list opt_else FIM 
-      { printf("Condicional SE executada com condicao: %s\n", $2); }
+      SE expression ENTAO statement_list opt_else FIM
+      {
+        Command cmd;
+        cmd.cmdType = CMD_IF;
+        cmd.conditionExpr = $2; // ex.: "(brilho>128)"
+        // Caso queira guardar os subcomandos do 'then' e 'else', 
+        // teria que expandir a AST para suportar sub-blocos.
+        // Aqui, simplificamos e guardamos só a expressão.
+
+        if (currentBlock == 1) {
+            astProgram.configCommands.push_back(cmd);
+        } else if (currentBlock == 2) {
+            astProgram.repitaCommands.push_back(cmd);
+        }
+        printf("Condicional SE executada com condicao: %s\n", $2);
+        free($2);
+      }
     ;
 
 /* Opcional: parte SENAO do if */
+/* Parte opcional SENAO */
 opt_else:
       /* vazio */
     | SENAO statement_list 
-      { printf("Bloco SENAO executado.\n"); }
+      { printf("Bloco SENAO executado.\n"); /* Em um design mais avançado, armazenaríamos os comandos do else. */ }
     ;
 
 /* Estrutura de repeticao (while) */
+/* while_statement: enquanto expr statement_list fim */
 while_statement:
-      ENQUANTO expression statement_list FIM 
-      { printf("Estrutura ENQUANTO executada com condicao: %s\n", $2); }
+      ENQUANTO expression statement_list FIM
+      {
+        Command cmd;
+        cmd.cmdType = CMD_WHILE;
+        cmd.conditionExpr = $2; // ex.: "(brilho<255)"
+
+        if (currentBlock == 1) {
+            astProgram.configCommands.push_back(cmd);
+        } else if (currentBlock == 2) {
+            astProgram.repitaCommands.push_back(cmd);
+        }
+        printf("Estrutura ENQUANTO executada com condicao: %s\n", $2);
+        free($2);
+      }
     ;
 
-/* Nova definição de expressão unificada */
+/* ------------------------------------------------------------------
+   Definição de expressão unificada
+   (sempre retorna <str>, que é um char*)
+   ------------------------------------------------------------------ */
 expression:
-    /* 1) Valor inteiro literal -> converte para string */
+      /* 1) Valor inteiro literal */
       NUMERO 
         {
           char buffer[32];
           sprintf(buffer, "%d", $1);  /* $1 é <intval> */
           $$ = strdup(buffer);        /* $$ é <str> */
         }
-
-    /* 2) Identificador -> já é <str> */
     | IDENTIFICADOR
         {
-          $$ = strdup($1); /* copia a string */
+          $$ = strdup($1);
+          free($1);
         }
-
-    /* 3) String literal -> já é <str> */
     | STRING_LIT
         {
           $$ = strdup($1);
+          free($1);
         }
-
-    /* 4) Operação soma (sintaxe expression + expression) */
     | expression MAIS expression
         {
-          /* Concatena as duas subexpressões numa só string 
-             Exemplo: "(E1+E2)" */
           int len = strlen($1) + strlen($3) + 5;
           char* buf = (char*) malloc(len);
           sprintf(buf, "(%s+%s)", $1, $3);
           $$ = buf;
+          free($1); free($3);
         }
-
-    /* 5) Operação subtração */
     | expression MENOS expression
         {
           int len = strlen($1) + strlen($3) + 5;
           char* buf = (char*) malloc(len);
           sprintf(buf, "(%s-%s)", $1, $3);
           $$ = buf;
+          free($1); free($3);
         }
-
-    /* 6) Multiplicação */
     | expression VEZES expression
         {
           int len = strlen($1) + strlen($3) + 5;
           char* buf = (char*) malloc(len);
           sprintf(buf, "(%s*%s)", $1, $3);
           $$ = buf;
+          free($1); free($3);
         }
-
-    /* 7) Divisão */
     | expression DIV expression
         {
           int len = strlen($1) + strlen($3) + 5;
           char* buf = (char*) malloc(len);
           sprintf(buf, "(%s/%s)", $1, $3);
           $$ = buf;
+          free($1); free($3);
         }
-
-    /* 8) Parênteses */
     | '(' expression ')'
         {
           int len = strlen($2) + 3;
           char* buf = (char*) malloc(len);
           sprintf(buf, "(%s)", $2);
           $$ = buf;
+          free($2);
         }
-
-    /* Opcional: comparações (<, >, == etc.) se quiser agrupar tudo */
-    /* 9) expression < expression */
     | expression MENOR expression
         {
-          /* Aqui você poderia também gerar string "E1<E2" */
-          int len = strlen($1) + strlen($3) + 4;
+          int len = strlen($1) + strlen($3) + 5;
           char* buf = (char*) malloc(len);
           sprintf(buf, "(%s<%s)", $1, $3);
           $$ = buf;
+          free($1); free($3);
         }
-
     | expression MAIOR expression
         {
-          /* Aqui você poderia também gerar string "E1<E2" */
-          int len = strlen($1) + strlen($3) + 4;
+          int len = strlen($1) + strlen($3) + 5;
           char* buf = (char*) malloc(len);
           sprintf(buf, "(%s>%s)", $1, $3);
           $$ = buf;
+          free($1); free($3);
         }
     | expression MENOR_IGUAL expression
         {
-          /* Aqui você poderia também gerar string "E1<E2" */
-          int len = strlen($1) + strlen($3) + 4;
+          int len = strlen($1) + strlen($3) + 6;
           char* buf = (char*) malloc(len);
           sprintf(buf, "(%s<=%s)", $1, $3);
           $$ = buf;
+          free($1); free($3);
         }
-      | expression MAIOR_IGUAL expression
+    | expression MAIOR_IGUAL expression
         {
-          /* Aqui você poderia também gerar string "E1<E2" */
-          int len = strlen($1) + strlen($3) + 4;
+          int len = strlen($1) + strlen($3) + 6;
           char* buf = (char*) malloc(len);
           sprintf(buf, "(%s>=%s)", $1, $3);
           $$ = buf;
+          free($1); free($3);
         }
-        | expression IGUAL_IGUAL expression
+    | expression IGUAL_IGUAL expression
         {
-          /* Aqui você poderia também gerar string "E1<E2" */
-          int len = strlen($1) + strlen($3) + 4;
+          int len = strlen($1) + strlen($3) + 6;
           char* buf = (char*) malloc(len);
           sprintf(buf, "(%s==%s)", $1, $3);
           $$ = buf;
+          free($1); free($3);
         }
-        | expression DIFERENTE expression
+    | expression DIFERENTE expression
         {
-          /* Aqui você poderia também gerar string "E1<E2" */
-          int len = strlen($1) + strlen($3) + 4;
+          int len = strlen($1) + strlen($3) + 6;
           char* buf = (char*) malloc(len);
           sprintf(buf, "(%s!=%s)", $1, $3);
           $$ = buf;
+          free($1); free($3);
         }
+    ;
 
 %%
 
@@ -338,6 +582,15 @@ void yyerror(const char *s) {
 /* Função principal */
 int main() {
     yyparse();
+
+    // Exemplo: ao final, podemos mostrar quantas declarações e comandos lemos:
+    // (ou chamaremos análise semântica e geração de código, etc.)
+    cout << "\n========== Resumo do AST ==========\n";
+    cout << "Declaracoes de variaveis: " << astProgram.declarations.size() << "\n";
+    cout << "Comandos em config:       " << astProgram.configCommands.size() << "\n";
+    cout << "Comandos em repita:       " << astProgram.repitaCommands.size() << "\n";
+
+    return 0;
 }
 
 int valid_string(const char* str) {
