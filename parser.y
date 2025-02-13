@@ -57,7 +57,7 @@ int valid_string(const char* str);
 
 /* Regra inicial do programa */
 program:
-    declaration_list configBlock repitaBlock '\n' { printf("Programa validado corretamente.\n"); }
+    declaration_list configBlock repitaBlock { printf("Programa validado corretamente.\n"); }
     | program '\n'
     ;
 
