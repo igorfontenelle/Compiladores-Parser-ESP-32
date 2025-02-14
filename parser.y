@@ -6,6 +6,7 @@
 
 %{
   #include "ast.h"   // Para ASTProgram e etc. no corpo do parser
+  #include "semantic.h"
   #include <stdio.h>
   #include <stdlib.h>
   #include <string.h>
@@ -582,7 +583,7 @@ void yyerror(const char *s) {
 /* Função principal */
 int main() {
     yyparse();
-
+    semanticAnalysis(astProgram);
     // Exemplo: ao final, podemos mostrar quantas declarações e comandos lemos:
     // (ou chamaremos análise semântica e geração de código, etc.)
     cout << "\n========== Resumo do AST ==========\n";

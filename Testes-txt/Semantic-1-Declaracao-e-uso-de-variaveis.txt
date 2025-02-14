@@ -1,0 +1,14 @@
+// Função de setup
+
+config
+    configurar ledPin como saida; // Configuração do pino como saída
+fim
+
+
+// Loop principal
+repita
+    ligar ledPin; // Liga o LED conectado ao pino
+    esperar 1000; // Pausa por 1 segundo
+    desligar ledPin; // Desliga o LED
+    esperar 1000; // Pausa por 1 segundo
+fim

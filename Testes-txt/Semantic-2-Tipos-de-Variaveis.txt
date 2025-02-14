@@ -1,0 +1,8 @@
+// Declaração de variáveis
+var texto: brilho;
+
+// Configuração de PWM
+config
+    brilho = 128;
+    configurarPWM ledPin com frequencia 5000 resolucao 8;
+ fim
