@@ -10,7 +10,7 @@ FLEX=flex
 BISON=bison
 
 parser: lex.yy.c parser.tab.c
-	$(CPPC) lex.yy.c parser.tab.c semantic.cpp -std=c++17 -o parser
+	$(CPPC) lex.yy.c parser.tab.c semantic.cpp codegen.cpp -std=c++17 -o parser
 
 lex.yy.c: lexer.l
 	$(FLEX) lexer.l

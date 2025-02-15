@@ -7,6 +7,7 @@
 %{
   #include "ast.h"   // Para ASTProgram e etc. no corpo do parser
   #include "semantic.h"
+  #include "codegen.h"
   #include <stdio.h>
   #include <stdlib.h>
   #include <string.h>
@@ -590,6 +591,8 @@ int main() {
     cout << "Declaracoes de variaveis: " << astProgram.declarations.size() << "\n";
     cout << "Comandos em config:       " << astProgram.configCommands.size() << "\n";
     cout << "Comandos em repita:       " << astProgram.repitaCommands.size() << "\n";
+
+    generateCode(astProgram, "output.cpp");
 
     return 0;
 }
