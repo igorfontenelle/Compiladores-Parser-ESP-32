@@ -8,21 +8,27 @@ var inteiro: testePin;
 config
 	ledPin = 2; // Configura ̧c~ao do pino onde o LED est ́a conectado
     testePin = 3;
+
 	ssid = "MinhaRedeWiFi"; // Nome da rede Wi-Fi
 	senha = "MinhaSenhaWiFi"; // Senha da rede Wi-Fi
-	configurar ledPin como saida; // Configura o pino como sa ́ıda
-	configurarPWM testePin com frequencia 5000 resolucao 8; // Configura PWM
-	conectarWifi ssid senha; // Conecta `a rede Wi-Fi
+
+	configurar ledPin como saida; // Configura o pino como saída
+	configurarPWM ledPin com frequencia 5000 resolucao 9; // Configura PWM
+
+	configurar ledPin como saida; // Configura o pino como saída
+	configurarPWM ledPin com frequencia 6000 resolucao 5; // Configura PWM
+
+	conectarWifi ssid senha; // Conecta à rede Wi-Fi
 fim
 
 // Loop principal
 repita
 	brilho = 128; // Define o valor do PWM (50% de intensidade)
-	ajustarPWM testePin com valor brilho; // Liga o LED com brilho definido
+	ajustarPWM ledPin com valor brilho; // Liga o LED com brilho definido
 	esperar 1000; // Pausa por 1 segundo
 
 	brilho = 0; // Define o valor do PWM como 0
 	
-	ajustarPWM testePin com valor brilho; // Desliga o LED
+	ajustarPWM ledPin com valor brilho; // Desliga o LED
 	esperar 1000; // Pausa por 1 segundo
 fim

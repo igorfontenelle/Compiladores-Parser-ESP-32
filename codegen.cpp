@@ -1,4 +1,6 @@
 #include "codegen.h"
+#include <map>
+#include <tuple>
 #include <fstream>
 #include <iostream>
 
@@ -19,6 +21,16 @@ static std::string varTypeToCpp(VarType t) {
     }
 }
 
+// Precisamos de um contador de canais e uma estrutura para
+// armazenar (canal,freq,resol)
+static std::map<std::string, std::tuple<int,int,int>> pwmData;
+static int nextChannel = 0;
+
+// Prototipos
+static void generateGlobals(std::ofstream &out, ASTProgram &program);
+static void generateSetup(std::ofstream &out, ASTProgram &program);
+static void generateLoop(std::ofstream &out, ASTProgram &program);
+
 /**
  * @brief Função auxiliar que gera a tradução de cada comando
  */
@@ -37,39 +49,77 @@ void generateCode(ASTProgram& program, const std::string& outputFilename) {
     // 1) Includes
     out << "#include <Arduino.h>\n";
     out << "#include <WiFi.h>\n"; 
-    // Se quiser outras libs, inclua aqui.
 
+    // 2) Gera variaveis globais
+    generateGlobals(out, program);
+
+    // 3) Gera setup()
+    out << "\nvoid setup() {\n";
+    generateSetup(out, program);
+    out << "}\n";
+
+    // 4) Gera loop()
+    out << "\nvoid loop() {\n";
+    generateLoop(out, program);
+    out << "}\n";
+
+    out.close();
+    std::cout << "Código C++ gerado em " << outputFilename << std::endl;
+}
+
+static void generateGlobals(std::ofstream &out, ASTProgram &program) {
+    // Limpa estruturas
+    pwmData.clear();
+    nextChannel = 0;
+
+    // 1) Primeiro, varrer configCommands para encontrar CMD_CONFIG_PWM
+    for (auto &cmd : program.configCommands) {
+        if (cmd.cmdType == CMD_CONFIG_PWM) {
+            auto it = pwmData.find(cmd.pin);
+            if (it == pwmData.end()) {
+                pwmData[cmd.pin] = std::make_tuple(nextChannel, cmd.freq, cmd.resol);
+                nextChannel++;
+            }
+            // Se quiser permitir reconfig do pino, atualize...
+        }
+    }
+
+    // 2) Agora imprime as variáveis do AST
     out << "\n// ========== Variáveis Globais ==========\n";
-    // 2) Declarações de variáveis
     for (auto &decl : program.declarations) {
         std::string cppType = varTypeToCpp(decl.type);
-        // Exemplo: "int ledPin;"
         out << cppType << " " << decl.name << ";\n";
     }
 
-    // 3) Gera a função setup() - com base em configCommands
-    out << "\nvoid setup() {\n";
-    // Se quiser, comece com "Serial.begin(115200);" ou algo do tipo
-    // out << "  Serial.begin(115200);\n";
+    // 3) Imprime as const do PWM
+    for (auto &kv : pwmData) {
+        auto &pinName = kv.first;
+        auto [ch, fr, rs] = kv.second;
+        out << "\nconst int canal_" << pinName << " = " << ch << ";";
+        out << "\nconst int freq_" << pinName  << "  = " << fr << ";";
+        out << "\nconst int resol_" << pinName << " = " << rs << ";\n";
+    }
+    out << "\n";
+}
 
-    // Percorra os comandos do bloco config
+static void generateSetup(std::ofstream &out, ASTProgram &program) {
+    // Percorrer configCommands
     for (auto &cmd : program.configCommands) {
         generateCommand(out, cmd);
     }
 
-    out << "}\n";
+    // Depois de processar, declarar as const para PWM:
+    // Precisamos imprimir: 
+    // const int canal_pinX = ...
+    // const int freq_pinX  = ...
+    // const int resol_pinX = ...
+    // ou inverso, se quiser em outro local.
+}
 
-    // 4) Gera a função loop() - com base em repitaCommands
-    out << "\nvoid loop() {\n";
-    // Percorra os comandos do bloco repita
+static void generateLoop(std::ofstream &out, ASTProgram &program) {
     for (auto &cmd : program.repitaCommands) {
         generateCommand(out, cmd);
     }
-
-    out << "}\n";
-
-    out.close();
-    std::cout << "Código C++ gerado com sucesso em " << outputFilename << "\n";
 }
 
 /**
@@ -95,18 +145,21 @@ static void generateCommand(std::ofstream &out, const Command &cmd) {
         } break;
 
         case CMD_CONFIG_PWM: {
-            // Exemplo: "configurarPWM ledPin com freq=5000, resol=8"
-            // No Arduino/ESP32 real, precisamos do ledcSetup e ledcAttachPin
-            // Exemplo (usando canal 0 fixo - poderia ficar mais elaborado):
-            out << "  ledcSetup(0, " << cmd.freq 
-                << ", " << cmd.resol << ");\n";
-            out << "  ledcAttachPin(" << cmd.pin << ", 0);\n";
+            // canal/freq/resol já está em pwmData, não precisamos atribuir de novo
+            // Basta imprimir as chamadas usando as const
+            out << "  ledcSetup(canal_" << cmd.pin << ", freq_" 
+            << cmd.pin << ", resol_" << cmd.pin << ");\n";
+            out << "  ledcAttachPin(" << cmd.pin << ", canal_" << cmd.pin << ");\n";
         } break;
 
         case CMD_PWM_ADJUST: {
-            // Exemplo: "ajustarPWM ledPin com valor brilho"
-            // => "ledcWrite(0, brilho);"
-            out << "  ledcWrite(" << cmd.pin << ", " << cmd.valueExpr << ");\n";
+            auto it = pwmData.find(cmd.pin);
+            if (it == pwmData.end()) {
+                // caso o parser permitir configPWM tardio, ou gera erro...
+                // Mas provavelmente no semântico já geraria erro.
+            }
+            out << "  ledcWrite(" 
+                << "canal_" << cmd.pin << ", " << cmd.valueExpr << ");\n";
         } break;
 
         case CMD_LIGAR: {
