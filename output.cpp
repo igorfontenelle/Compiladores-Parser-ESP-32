@@ -4,14 +4,19 @@
 // ========== Variáveis Globais ==========
 int ledPin;
 int brilho;
+int vermelho;
+bool botao;
+bool estadoBotao;
 int ssid;
 int senha;
-int testePin;
 
 
 void setup() {
-  ledPin = 2;
-  testePin = 3;
+  pinMode(ledPin, OUTPUT);
+  pinMode(botao, INPUT);
+  digitalWrite(ledPin, HIGH);
+  digitalWrite(ledPin, LOW);
+  estadoBotao = digitalRead(botao);
 }
 
 void loop() {

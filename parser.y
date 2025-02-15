@@ -60,6 +60,7 @@ int valid_string(const char* str);
 %token CONFIG FIM REPITA
 %token CONFIGURAR COMO CONFIGURAR_PWM AJUSTAR_PWM
 %token CONECTAR_WIFI ENVIAR_HTTP ESCREVER_SERIAL LER_SERIAL
+%token LER_DIGITAL LER_ANALOGICO
 %token SE ENTAO SENAO ENQUANTO ESPERAR
 %token IGUAL  /* "=" atribuição */
 %token DOIS_PONTOS PONTO_VIRGULA
@@ -90,6 +91,8 @@ int valid_string(const char* str);
 %type <varType> type
 %type <strList> identifier_list
 %type <str> expression
+%type <str> read_digital
+%type <str> read_analog
 
 %%
 
@@ -206,6 +209,39 @@ assignment_statement:
             astProgram.repitaCommands.push_back(cmd);
         }
         printf("Atribuindo: %s = %s\n", $1, $3);
+        free($1);
+        free($3);
+      }
+      | IDENTIFICADOR IGUAL read_digital PONTO_VIRGULA
+      {
+        // "estadoBotao = lerDigital botao;"
+        Command cmd;
+        cmd.cmdType = CMD_LER_DIGITAL;
+        cmd.varName = $1; // ex.: "estadoBotao"
+        cmd.pin     = $3; // ex.: "botao" (vem da regra read_digital)
+        // ...
+        // Inserir no configCommands ou repitaCommands dependendo de currentBlock
+        if(currentBlock == 1) 
+            astProgram.configCommands.push_back(cmd);
+        else if(currentBlock == 2)
+            astProgram.repitaCommands.push_back(cmd);
+
+        free($1);
+        free($3);
+      }
+      | IDENTIFICADOR IGUAL read_analog PONTO_VIRGULA
+      {
+        // "sensorValor = lerAnalogico sensor;"
+        Command cmd;
+        cmd.cmdType = CMD_LER_ANALOGICO;
+        cmd.varName = $1;  // ex.: "sensorValor"
+        cmd.pin     = $3;  // ex.: "sensor"
+        // ...
+        if(currentBlock == 1)
+            astProgram.configCommands.push_back(cmd);
+        else if(currentBlock == 2)
+            astProgram.repitaCommands.push_back(cmd);
+
         free($1);
         free($3);
       }
@@ -352,6 +388,22 @@ digital_command:
         free($2);
       }
     ;
+
+read_digital:
+    LER_DIGITAL IDENTIFICADOR
+    {
+       // Retornamos o pino
+       $$ = $2;  // ex.: "botao"
+    }
+    ;
+
+read_analog:
+    LER_ANALOGICO IDENTIFICADOR
+    {
+       // Retornamos o pino
+       $$ = $2;  // ex.: "sensor"
+    }
+    
 
 /* Envio de dados via HTTP (ex.: enviarHTTP "http://example.com" "dados=123";) */
 http_command:

@@ -42,6 +42,8 @@ enum CmdType {
     CMD_WAIT,            // ex.:  esperar 1000;
     CMD_LIGAR,           // ex.:  ligar ledPin;
     CMD_DESLIGAR,        // ex.:  desligar ledPin;
+    CMD_LER_DIGITAL,     // ex.:  estadoBotao = lerDigital botao;
+    CMD_LER_ANALOGICO,   // ex.:  estadoBotao = lerAnalogico sensor;
     CMD_ENVIAR_HTTP,     // ex.:  enviarHttp "url" "dados";
     CMD_ESCREVER_SERIAL, // ex.:  escreverSerial "msg";
     CMD_LER_SERIAL,      // ex.:  lerSerial;
@@ -59,7 +61,7 @@ struct Command {
 
     // Campos genéricos. Nem todos serão usados em todo comando, 
     // mas isso simplifica se você não quiser uma struct por comando
-    std::string varName;     // para assignment: ex.: "ledPin"
+    std::string varName;     // para assignment: ex.: "ledPin" ou lerDigital: ex.: "estadoBotao"
     std::string expr;        // para assignment ou qualquer expression (ex.: "2", "brilho", "128", etc.)
 
     // Para config pino

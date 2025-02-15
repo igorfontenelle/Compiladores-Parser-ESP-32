@@ -33,6 +33,8 @@ static void checkConfigPin(const Command& cmd);
 static void checkConfigPwm(const Command& cmd);
 static void checkPwmAdjust(const Command& cmd);
 static void checkDigital(const Command& cmd);
+static void checkLerDigital(const Command& cmd);
+static void checkLerAnalogico(const Command& cmd);
 
 /**
  * @brief Função principal de Análise Semântica
@@ -91,6 +93,12 @@ static void checkCommand(const Command& cmd) {
         case CMD_LIGAR:
         case CMD_DESLIGAR:
             checkDigital(cmd);
+            break;
+        case CMD_LER_DIGITAL:
+            checkLerDigital(cmd);
+            break;
+        case CMD_LER_ANALOGICO:
+            checkLerAnalogico(cmd);
             break;
         // Se quiser WiFi, HTTP, Serial etc. com checagens adicionais
         // case CMD_WIFI_CONNECT: ...
@@ -207,3 +215,46 @@ static void checkDigital(const Command& cmd) {
         exit(1);
     }
 }
+
+static void checkLerDigital(const Command &cmd) {
+    // 1) Verifique se varName existe:
+    auto itVar = symbolTable.find(cmd.varName);
+    if (itVar == symbolTable.end()) {
+        std::cerr << "Erro semântico: variável de destino '" 
+                  << cmd.varName << "' não foi declarada.\n";
+        exit(1);
+    }
+    // 2) Verifique se pin existe e está configurado como entrada:
+    auto itPin = symbolTable.find(cmd.pin);
+    if (itPin == symbolTable.end()) {
+        std::cerr << "Erro semântico: pino '" 
+                  << cmd.pin << "' não foi declarado.\n";
+        exit(1);
+    }
+    if (!itPin->second.isPin || itPin->second.pinMode != "entrada") {
+        std::cerr << "Erro semântico: 'lerDigital' requer pino configurado como entrada.\n";
+        exit(1);
+    }
+}
+
+static void checkLerAnalogico(const Command &cmd) {
+    // Mesmo processo, mas se você tiver "entradaAnalog" ou algo do tipo:
+    auto itVar = symbolTable.find(cmd.varName);
+    if (itVar == symbolTable.end()) {
+        std::cerr << "Erro semântico: variável de destino '" 
+                  << cmd.varName << "' não foi declarada.\n";
+        exit(1);
+    }
+    auto itPin = symbolTable.find(cmd.pin);
+    if (itPin == symbolTable.end()) {
+        std::cerr << "Erro semântico: pino '" 
+                  << cmd.pin << "' não foi declarado.\n";
+        exit(1);
+    }
+    // Se sua DSL exige "entradaAnalog" ou "entrada" normal, verifique aqui.
+    if (!itPin->second.isPin /* ou itPin->second.pinMode != "entradaAnalog" */ ) {
+        std::cerr << "Erro semântico: 'lerAnalogico' requer pino configurado como entrada analog.\n";
+        exit(1);
+    }
+}
+

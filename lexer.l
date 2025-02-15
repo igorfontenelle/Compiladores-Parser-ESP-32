@@ -26,6 +26,8 @@
 "enviarHTTP"            { printf("Token: ENVIAR_HTTP\n"); return ENVIAR_HTTP; }
 "escreverSerial"        { printf("Token: ESCREVER_SERIAL\n"); return ESCREVER_SERIAL; }
 "lerSerial"             { printf("Token: LER_SERIAL\n"); return LER_SERIAL; }
+"lerDigital"            { printf("Token: LER_DIGITAL\n"); return LER_DIGITAL; }
+"lerAnalogico"          { printf("Token: LER_ANALOGICO\n"); return LER_ANALOGICO; }
 "se"                    { printf("Token: SE\n"); return SE; }
 "entao"                 { printf("Token: ENTAO\n"); return ENTAO; }
 "senão"                 { printf("Token: SENAO\n"); return SENAO; }

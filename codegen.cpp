@@ -172,6 +172,16 @@ static void generateCommand(std::ofstream &out, const Command &cmd) {
             out << "  digitalWrite(" << cmd.digitalPin << ", LOW);\n";
         } break;
 
+        case CMD_LER_DIGITAL: {
+            // Exemplo: "estadoBotao = digitalRead(botao);"
+            out << "  " << cmd.varName << " = digitalRead(" << cmd.pin << ");\n";
+        } break;
+        
+        case CMD_LER_ANALOGICO: {
+            // Exemplo: "sensorValor = analogRead(sensor);"
+            out << "  " << cmd.varName << " = analogRead(" << cmd.pin << ");\n";
+        } break;
+
         case CMD_WIFI_CONNECT: {
             // Exemplo: "conectarWifi ssid senha;"
             // => 

@@ -1,34 +1,14 @@
-// Declaração de variáveis
-
-var inteiro: ledPin, brilho;
+var inteiro: ledPin, brilho, vermelho;
+var booleano: botao;
+var booleano: estadoBotao;
 var texto: ssid, senha;
-var inteiro: testePin;
-// Função de setup
 
-config
-	ledPin = 2; // Configura ̧c~ao do pino onde o LED est ́a conectado
-    testePin = 3;
+config 
+	configurar ledPin como saida;
+	configurar botao como entrada;
 
-	ssid = "MinhaRedeWiFi"; // Nome da rede Wi-Fi
-	senha = "MinhaSenhaWiFi"; // Senha da rede Wi-Fi
+	ligar ledPin;
+	desligar ledPin;
 
-	configurar ledPin como saida; // Configura o pino como saída
-	configurarPWM ledPin com frequencia 5000 resolucao 9; // Configura PWM
-
-	configurar ledPin como saida; // Configura o pino como saída
-	configurarPWM ledPin com frequencia 6000 resolucao 5; // Configura PWM
-
-	conectarWifi ssid senha; // Conecta à rede Wi-Fi
-fim
-
-// Loop principal
-repita
-	brilho = 128; // Define o valor do PWM (50% de intensidade)
-	ajustarPWM ledPin com valor brilho; // Liga o LED com brilho definido
-	esperar 1000; // Pausa por 1 segundo
-
-	brilho = 0; // Define o valor do PWM como 0
-	
-	ajustarPWM ledPin com valor brilho; // Desliga o LED
-	esperar 1000; // Pausa por 1 segundo
+	estadoBotao = lerDigital ledPin;
 fim
