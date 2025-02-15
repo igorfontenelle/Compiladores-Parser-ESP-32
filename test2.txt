@@ -1,14 +1,42 @@
-var inteiro: ledPin, brilho, vermelho;
-var booleano: botao;
-var booleano: estadoBotao;
+// Declaração de variáveis
+var inteiro: ledPin, brilho;
+var booleano: botao, estadoBotao;
 var texto: ssid, senha;
 
-config 
-	configurar ledPin como saida;
-	configurar botao como entrada;
+// Bloco config
+config
+    // Atribuição simples e configuração de pinos
+    ledPin = 2;
+    configurar ledPin como saida;
 
-	ligar ledPin;
-	desligar ledPin;
+    botao = 4;
+    configurar botao como entrada;
 
-	estadoBotao = lerDigital ledPin;
+    // Expressão com operadores +, * e parênteses
+    brilho = 100 + (20 * 2);
+
+    // Atribuição de texto
+    ssid = "MinhaRedeWiFi";
+    senha = "SenhaSegura";
+
+    // Configuração de PWM no ledPin
+    configurarPWM ledPin com frequencia 5000 resolucao 8;
+fim
+
+// Bloco principal (loop)
+repita
+    // Leitura digital
+    estadoBotao = lerDigital botao;
+
+    // Exemplo de expressão que soma 1 ao brilho
+    brilho = brilho + 1;
+
+    // Ajuste do PWM usando a variável 'brilho'
+    ajustarPWM ledPin com valor brilho;
+    esperar 1000;
+
+    // Zera o brilho e teste
+    brilho = 0;
+    ajustarPWM ledPin com valor brilho;
+    esperar 1000;
 fim

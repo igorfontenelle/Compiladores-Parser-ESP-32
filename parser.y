@@ -129,9 +129,9 @@ declaration:
 
 /* Tipos suportados */
 type:
-      TIPO_INTEIRO { printf("Tipo: inteiro\n"); }
-    | TIPO_TEXTO   { printf("Tipo: texto\n"); }
-    | TIPO_BOOLEANO { $$ = VAR_BOOLEANO; }
+      TIPO_INTEIRO { $$ = VAR_INTEIRO; printf("Tipo: inteiro\n"); }
+    | TIPO_TEXTO   { $$ = VAR_TEXTO; printf("Tipo: texto\n"); }
+    | TIPO_BOOLEANO { $$ = VAR_BOOLEANO; printf("Tipo: booleano\n"); }
     ;
 
 /* Lista de identificadores: "ledPin, brilho" */

@@ -35,6 +35,7 @@ static void checkPwmAdjust(const Command& cmd);
 static void checkDigital(const Command& cmd);
 static void checkLerDigital(const Command& cmd);
 static void checkLerAnalogico(const Command& cmd);
+VarType inferExpressionType(const std::string &expr);
 
 /**
  * @brief Função principal de Análise Semântica
@@ -123,21 +124,22 @@ static void checkAssign(const Command& cmd) {
         exit(1);
     }
 
-    // Se quiser verificar se a varName é "inteiro" mas o cmd.expr é string...
-    // Lembre-se que cmd.expr é do tipo string. 
-    // Você teria que fazer uma lógica de "é um literal numérico?" ou "identificador?" etc.
-    // Exemplo simplificado:
-    if (it->second.type == VAR_INTEIRO) {
-        // Você poderia checar se cmd.expr tem formato numérico
-        // ou se é uma outra var do tipo inteiro.
-        // Exemplo raso:
-        if (cmd.expr.size() > 0 && cmd.expr[0] == '"') {
-            std::cerr << "Erro semântico: Atribuição de texto em variável inteira '"
-                      << cmd.varName << "'\n";
-            exit(1);
-        }
-    }
+    VarType varType = it->second.type;  // ex. VAR_INTEIRO
+    // Aqui é a “string” da expressão que o parser guardou
+    VarType exprT = inferExpressionType(cmd.expr); // Ex.: "ledPin+128"
 
+    // Se varType é inteiro e exprT for VAR_TEXTO => erro
+    // Se varType é texto e exprT for VAR_INTEIRO => erro, etc.
+    if (varType==VAR_INTEIRO && exprT==VAR_TEXTO) {
+        std::cerr << "Erro semântico: atribuição de texto em variável inteira '"
+                  << cmd.varName << "'\n";
+        exit(1);
+    }
+    if (varType==VAR_TEXTO && exprT==VAR_INTEIRO) {
+        std::cerr << "Erro semântico: atribuição de inteiro em variável texto '"
+                  << cmd.varName << "'\n";
+        exit(1);
+    }
     // etc.
 }
 
@@ -256,5 +258,46 @@ static void checkLerAnalogico(const Command &cmd) {
         std::cerr << "Erro semântico: 'lerAnalogico' requer pino configurado como entrada analog.\n";
         exit(1);
     }
+}
+
+// Retorna VAR_INTEIRO, VAR_TEXTO, ou VAR_UNDEFINED se não conseguir deduzir
+VarType inferExpressionType(const std::string &expr) {
+    // 1) Se começa com aspas => texto
+    if (!expr.empty() && expr[0] == '"') {
+        // ex.: "\"Olá\""
+        return VAR_TEXTO;
+    }
+
+    // 2) Se expressão exata está no symbolTable => retorne o type
+    // (significa que a expressão é um identificador simples)
+    auto it = symbolTable.find(expr);
+    if (it != symbolTable.end()) {
+        return it->second.type; 
+    }
+
+    // 3) Tentar ver se expr é literal numérico puro (ex.: "123")
+    bool soDigitos = true;
+    for (char c: expr) {
+        if (c != '-' && !isdigit(c)) {
+            soDigitos = false;
+            break;
+        }
+    }
+    if (soDigitos) {
+        return VAR_INTEIRO;
+    }
+
+    // 4) Se contém operadores (+, -, *, /, <, etc.) ou parênteses, vamos assumir que é “expressão aritmética”
+    //    e você decide se retorna VAR_INTEIRO ou faz mais heurística
+    if (expr.find('+')!=std::string::npos || expr.find('-')!=std::string::npos
+         || expr.find('*')!=std::string::npos || expr.find('/')!=std::string::npos
+         || expr.find('(')!=std::string::npos || expr.find(')')!=std::string::npos
+         || /* ... <, >, <=, etc. */ false) {
+        // Ex: assumimos que é expressão aritmética => VAR_INTEIRO
+        return VAR_INTEIRO;
+    }
+
+    // 5) Se chegou aqui e não bateu nada, retorne UNDEFINED
+    return VAR_UNDEFINED;
 }
 
