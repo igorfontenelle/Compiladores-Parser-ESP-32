@@ -12,7 +12,6 @@ Ao invés de utilizar um arquivo `.sh`, foi criado um **Makefile** para automati
 	```bash
 	make
 	```
-    
     Isso executa, em sequência:
     
     1. `flex lexer.l` → gera `lex.yy.c`
@@ -25,5 +24,12 @@ Ao invés de utilizar um arquivo `.sh`, foi criado um **Makefile** para automati
     make clean
 	```
     Remove `parser`, `lex.yy.c`, `parser.tab.c` e `parser.tab.h`.
+    
+- **Para executar** o tradutor e processar um arquivo de teste (por exemplo, `meuPrograma.txt`), basta rodar:
+
+	```bash
+    ./parser < meuPrograma.txt
+	```
+	Isso faz o binário `parser` ler o programa da **entrada padrão** e, se estiver tudo correto, gerar o código C++ (por exemplo, em `output.cpp`).
 
 	Com esse **Makefile**, todo o processo de compilação do projeto (análise léxica, análise sintática, semântica e geração do executável final) fica automatizado, o que cumpre o requisito (e) do trabalho.
